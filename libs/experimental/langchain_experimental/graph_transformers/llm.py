@@ -55,11 +55,7 @@ default_prompt = ChatPromptTemplate.from_messages(
                 "Use the given format to extract information from the "
                 "following input: {input}"
             ),
-        ),
-        (
-            "human",
-            "Tip: Make sure to answer in the correct format and do not include any ",
-        ),
+        )
     ]
 )
 
