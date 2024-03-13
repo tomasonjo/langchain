@@ -9,8 +9,6 @@ When you initiate a free database instance, you'll receive credentials to access
 
 This template is flexible and allows users to guide the extraction process by specifying a list of node labels and relationship types.
 
-For more details on the functionality and capabilities of this package, please refer to [this blog post](https://blog.langchain.dev/constructing-knowledge-graphs-from-text-using-openai-functions/).
-
 ## Environment Setup
 
 You need to set the following environment variables:
