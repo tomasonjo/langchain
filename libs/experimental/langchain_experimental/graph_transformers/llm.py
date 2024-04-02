@@ -67,16 +67,18 @@ def optional_enum_field(
     enum_values: Optional[List[str]] = None,
     description: str = "",
     is_rel: bool = False,
+    default_value: Optional[str] = None,
     **field_kwargs: Any,
 ) -> Any:
     """Utility function to conditionally create a field with an enum constraint."""
     if enum_values:
-        return Field(
-            ...,
-            enum=enum_values,
-            description=f"{description}. Available options are {enum_values}",
-            **field_kwargs,
-        )
+        if is_rel:
+            return Field(
+                default_value or ...,
+                enum=enum_values,
+                description=f"{description}. Available options are {enum_values}",
+                **field_kwargs,
+            )
     else:
         node_info = (
             "Ensure you use basic or elementary types for node labels.\n"
@@ -90,7 +92,7 @@ def optional_enum_field(
             "'PROFESSOR'. However, do not sacrifice any accuracy for generality"
         )
         additional_info = rel_info if is_rel else node_info
-        return Field(..., description=description + additional_info, **field_kwargs)
+        return Field(default_value or ..., description=description + additional_info, **field_kwargs)
 
 
 class _Graph(BaseModel):
@@ -120,14 +122,22 @@ def create_simple_model(
         source_node_id: str = Field(
             description="Name or human-readable unique identifier of source node"
         )
-        source_node_type: str = optional_enum_field(
-            node_labels, description="The type or label of the source node."
+        source_node_type: Optional[str] = optional_enum_field(
+            node_labels,
+            description=(
+                "The type or label of the source node." "Include it where possible"
+            ),
+            default_value="Node"
         )
         target_node_id: str = Field(
             description="Name or human-readable unique identifier of target node"
         )
-        target_node_type: str = optional_enum_field(
-            node_labels, description="The type or label of the target node."
+        target_node_type: Optional[str] = optional_enum_field(
+            node_labels,
+            description=(
+                "The type or label of the target node." "Include it where possible"
+            ),
+            default_value="Node"
         )
         type: str = optional_enum_field(
             rel_types, description="The type of the relationship.", is_rel=True
@@ -223,6 +233,32 @@ class LLMGraphTransformer:
         """
         text = document.page_content
         raw_schema = cast(_Graph, self.chain.invoke({"input": text}))
+        # Fill in missing node types in relationships
+        if raw_schema.relationships:
+            for rel in raw_schema.relationships:
+                if rel.source_node_type == "Node":
+                    try:
+                        print("Copying source type")
+                        rel.source_node_type = [
+                            el.type
+                            for el in raw_schema.nodes
+                            if el.id == rel.source_node_id
+                        ][0]
+                    except IndexError:
+                        rel.source_node_type = "Node"
+
+                if rel.target_node_type == "Node":
+                    try:
+                        print("Copying target type")
+                        rel.target_node_type = [
+                            el.type
+                            for el in raw_schema.nodes
+                            if el.id == rel.target_node_id
+                        ][0]
+                    except IndexError:
+                        rel.target_node_type = "Node"
+
+        # Map to base types
         nodes = (
             [map_to_base_node(node) for node in raw_schema.nodes]
             if raw_schema.nodes
